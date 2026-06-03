@@ -1,0 +1,39 @@
+# ── Secrets ───────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Python ────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.uv/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# ── Node / Next.js ────────────────────────────────────
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
+npm-debug.log*
+
+# ── Docker ────────────────────────────────────────────
+.docker/
+
+# ── OS ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE ───────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
