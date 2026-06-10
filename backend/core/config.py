@@ -38,6 +38,17 @@ class Settings(BaseSettings):
     litellm_reasoning_model: str = "gpt-4o"
     litellm_local_model: str = "ollama/llama3.1"
 
+    # Embeddings / transcription
+    openai_embedding_model: str = "text-embedding-3-small"
+    embedding_dim: int = 1536
+    openai_whisper_model: str = "whisper-1"
+
+    # Ingestion tuning
+    chunk_size: int = 1000
+    chunk_overlap: int = 150
+    qdrant_collection: str = "document_chunks"
+    max_upload_mb: int = 50
+
     # Notifications
     slack_webhook_url: str = ""
     smtp_host: str = ""

@@ -8,8 +8,7 @@ celery_app = Celery(
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
     include=[
-        # task modules registered here as phases are built
-        # "workers.tasks.ingestion",
+        "workers.tasks.ingestion",
     ],
 )
 

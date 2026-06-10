@@ -31,10 +31,10 @@ install:
 	cd backend && uv sync
 
 migrate:
-	docker compose exec api alembic upgrade head
+	docker compose exec api uv run alembic upgrade head
 
 migration:
-	docker compose exec api alembic revision --autogenerate -m "$(msg)"
+	docker compose exec api uv run alembic revision --autogenerate -m "$(msg)"
 
 # ── Frontend dev ──────────────────────────────────────
 dev-frontend:

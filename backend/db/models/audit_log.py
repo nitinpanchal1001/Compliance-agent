@@ -26,7 +26,7 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     entity_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     entity_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
-    metadata: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    extra_data: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
 
     def __repr__(self) -> str:
