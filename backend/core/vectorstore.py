@@ -114,3 +114,112 @@ def search(
         with_payload=True,
     ).points
     return [{**h.payload, "score": h.score} for h in hits]
+
+
+# ── Policy corpus collection ──────────────────────────
+# Separate collection for reference regulations. Each point's payload carries an
+# `owner` field: "global" for the shared corpus, or a tenant_id for tenant-owned
+# policies. Retrieval returns global policies plus the caller's own.
+
+POLICY_COLLECTION = settings.policy_collection
+
+
+def _policy_point_id(policy_id: str, section: str, chunk_index: int) -> str:
+    """Deterministic ID so re-seeding a policy overwrites its old clauses."""
+    return str(uuid5(NAMESPACE_URL, f"policy:{policy_id}:{section}:{chunk_index}"))
+
+
+def ensure_policy_collection() -> None:
+    client = get_client()
+    if client.collection_exists(POLICY_COLLECTION):
+        return
+    client.create_collection(
+        collection_name=POLICY_COLLECTION,
+        vectors_config=models.VectorParams(
+            size=settings.embedding_dim, distance=models.Distance.COSINE
+        ),
+    )
+    for field in ("owner", "regulation", "policy_id"):
+        client.create_payload_index(
+            collection_name=POLICY_COLLECTION,
+            field_name=field,
+            field_schema=models.PayloadSchemaType.KEYWORD,
+        )
+
+
+def delete_policy(policy_id: str) -> None:
+    get_client().delete(
+        collection_name=POLICY_COLLECTION,
+        points_selector=models.FilterSelector(
+            filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="policy_id", match=models.MatchValue(value=policy_id)
+                    )
+                ]
+            )
+        ),
+    )
+
+
+def upsert_policy_chunks(points: list[dict]) -> None:
+    """points: list of dicts with keys
+    policy_id, owner, regulation, section, citation, chunk_index, text, vector.
+    """
+    structs = [
+        models.PointStruct(
+            id=_policy_point_id(p["policy_id"], p["section"], p["chunk_index"]),
+            vector=p["vector"],
+            payload={
+                "owner": p["owner"],
+                "policy_id": p["policy_id"],
+                "regulation": p["regulation"],
+                "section": p["section"],
+                "citation": p["citation"],
+                "chunk_index": p["chunk_index"],
+                "text": p["text"],
+            },
+        )
+        for p in points
+    ]
+    if structs:
+        get_client().upsert(collection_name=POLICY_COLLECTION, points=structs)
+
+
+def search_policies(
+    tenant_id: str,
+    query_vector: list[float],
+    limit: int = 5,
+    regulations: list[str] | None = None,
+) -> list[dict]:
+    """Retrieve clauses from the global corpus AND the caller's own policies.
+
+    Optionally narrow to specific regulations (e.g. ["GDPR", "HIPAA"]).
+    """
+    # owner is "global" OR the caller's tenant_id
+    must: list = [
+        models.Filter(
+            should=[
+                models.FieldCondition(
+                    key="owner", match=models.MatchValue(value="global")
+                ),
+                models.FieldCondition(
+                    key="owner", match=models.MatchValue(value=tenant_id)
+                ),
+            ]
+        )
+    ]
+    if regulations:
+        must.append(
+            models.FieldCondition(
+                key="regulation", match=models.MatchAny(any=regulations)
+            )
+        )
+    hits = get_client().query_points(
+        collection_name=POLICY_COLLECTION,
+        query=query_vector,
+        query_filter=models.Filter(must=must),
+        limit=limit,
+        with_payload=True,
+    ).points
+    return [{**h.payload, "score": h.score} for h in hits]

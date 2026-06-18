@@ -13,6 +13,7 @@ from db.models.audit_log import AuditLog  # noqa: F401
 from db.models.case import Case  # noqa: F401
 from db.models.document import Document  # noqa: F401
 from db.models.human_review import HumanReview  # noqa: F401
+from db.models.policy import Policy  # noqa: F401
 from db.models.tenant import Tenant  # noqa: F401
 from db.models.user import User  # noqa: F401
 from db.models.violation import Violation  # noqa: F401

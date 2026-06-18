@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from db.models.case import Case
 
 
-class ViolationSeverity(str, enum.Enum):
+class ViolationSeverity(enum.StrEnum):
     critical = "critical"
     high = "high"
     medium = "medium"

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from db.models.tenant import Tenant
 
 
-class UserRole(str, enum.Enum):
+class UserRole(enum.StrEnum):
     admin = "admin"
     reviewer = "reviewer"
     viewer = "viewer"

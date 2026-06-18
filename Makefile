@@ -1,4 +1,4 @@
-.PHONY: up down logs shell-api shell-worker install migrate test lint
+.PHONY: up down logs shell-api shell-worker install migrate migration seed-policies test lint
 
 # ── Docker ────────────────────────────────────────────
 up:
@@ -35,6 +35,9 @@ migrate:
 
 migration:
 	docker compose exec api uv run alembic revision --autogenerate -m "$(msg)"
+
+seed-policies:
+	docker compose exec api uv run python -m scripts.seed_policies
 
 # ── Frontend dev ──────────────────────────────────────
 dev-frontend:

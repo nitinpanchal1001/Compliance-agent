@@ -5,7 +5,7 @@ Each message becomes a "user: text" line, in timestamp order where available.
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def parse(raw: bytes) -> str:
@@ -30,7 +30,7 @@ def parse(raw: bytes) -> str:
         when = ""
         if ts:
             try:
-                when = datetime.fromtimestamp(float(ts), tz=timezone.utc).isoformat()
+                when = datetime.fromtimestamp(float(ts), tz=UTC).isoformat()
             except (ValueError, TypeError):
                 when = ""
         prefix = f"[{when}] {user}" if when else user

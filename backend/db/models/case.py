@@ -7,13 +7,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.base import Base
 
 
-class CaseStatus(str, enum.Enum):
+class CaseStatus(enum.StrEnum):
     open = "open"
     pending_review = "pending_review"
     closed = "closed"
 
 
-class RiskTier(str, enum.Enum):
+class RiskTier(enum.StrEnum):
     critical = "critical"
     high = "high"
     medium = "medium"

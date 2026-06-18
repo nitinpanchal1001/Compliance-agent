@@ -9,6 +9,7 @@ from db.models.audit_log import AuditLog
 from db.models.case import Case
 from db.models.document import Document
 from db.models.human_review import HumanReview
+from db.models.policy import Policy
 from db.models.tenant import Tenant
 from db.models.user import User
 from db.models.violation import Violation
@@ -18,6 +19,7 @@ __all__ = [
     "Case",
     "Document",
     "HumanReview",
+    "Policy",
     "Tenant",
     "User",
     "Violation",

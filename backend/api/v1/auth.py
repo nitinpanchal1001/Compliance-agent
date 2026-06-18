@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -71,7 +71,7 @@ async def login(
             detail="Account is disabled",
         )
 
-    user.last_login = datetime.now(timezone.utc)
+    user.last_login = datetime.now(UTC)
 
     access_token = create_access_token(user.id, user.tenant_id, user.role.value)
     refresh_token = create_refresh_token(user.id, user.tenant_id)

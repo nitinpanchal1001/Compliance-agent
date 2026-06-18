@@ -49,6 +49,8 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# Alembic writes these; they're machine-generated, don't lint them.
+extend-exclude = ["db/migrations/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]

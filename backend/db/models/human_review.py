@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from db.models.case import Case
 
 
-class ReviewDecision(str, enum.Enum):
+class ReviewDecision(enum.StrEnum):
     confirmed = "confirmed"
     dismissed = "dismissed"
     escalated = "escalated"

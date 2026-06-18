@@ -5,8 +5,8 @@ they use a separate sync engine here (psycopg driver). Both point at the same
 Postgres database and share the same SQLAlchemy models.
 """
 
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker

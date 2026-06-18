@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, event
 from sqlalchemy.dialects.postgresql import JSONB
@@ -13,7 +13,7 @@ class AuditLog(Base):
     # Override updated_at — audit logs are immutable
     updated_at: Mapped[datetime] = mapped_column(  # type: ignore[assignment]
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
 

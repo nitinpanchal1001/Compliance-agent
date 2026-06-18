@@ -1,4 +1,5 @@
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -48,6 +49,11 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
     qdrant_collection: str = "document_chunks"
     max_upload_mb: int = 50
+
+    # Policy corpus / RAG
+    policy_collection: str = "policy_chunks"
+    policy_corpus_path: str = "/policy_corpus"
+    policy_retrieval_top_k: int = 5
 
     # Notifications
     slack_webhook_url: str = ""

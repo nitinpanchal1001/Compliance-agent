@@ -6,14 +6,14 @@ from sqlalchemy.orm import Mapped, mapped_column
 from db.base import Base
 
 
-class DocumentStatus(str, enum.Enum):
+class DocumentStatus(enum.StrEnum):
     pending = "pending"
     processing = "processing"
     ready = "ready"
     failed = "failed"
 
 
-class DocumentFileType(str, enum.Enum):
+class DocumentFileType(enum.StrEnum):
     pdf = "pdf"
     email = "email"
     slack = "slack"

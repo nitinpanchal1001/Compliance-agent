@@ -1,9 +1,10 @@
-import structlog
 from contextlib import asynccontextmanager
+
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.v1 import auth, documents, tenants, users
+from api.v1 import auth, documents, policies, tenants, users
 from core.config import get_settings
 
 log = structlog.get_logger()
@@ -39,6 +40,7 @@ app.include_router(auth.router, prefix=API_PREFIX)
 app.include_router(tenants.router, prefix=API_PREFIX)
 app.include_router(users.router, prefix=API_PREFIX)
 app.include_router(documents.router, prefix=API_PREFIX)
+app.include_router(policies.router, prefix=API_PREFIX)
 
 
 @app.get("/health", tags=["ops"])
@@ -86,4 +88,8 @@ async def ready():
 
     status_code = 200 if all_ok else 503
     from fastapi.responses import JSONResponse
-    return JSONResponse({"status": "ready" if all_ok else "degraded", "checks": checks}, status_code=status_code)
+
+    return JSONResponse(
+        {"status": "ready" if all_ok else "degraded", "checks": checks},
+        status_code=status_code,
+    )
