@@ -88,6 +88,34 @@ def delete_document(document_id: str) -> None:
     )
 
 
+def get_document_chunks(tenant_id: str, document_id: str) -> list[dict]:
+    """Return a document's chunks (text + index) from the payload, in order.
+
+    Lets the reasoning agent re-read the document without re-downloading from S3.
+    """
+    points, _ = get_client().scroll(
+        collection_name=COLLECTION,
+        scroll_filter=models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="tenant_id", match=models.MatchValue(value=tenant_id)
+                ),
+                models.FieldCondition(
+                    key="document_id", match=models.MatchValue(value=document_id)
+                ),
+            ]
+        ),
+        limit=10_000,
+        with_payload=True,
+        with_vectors=False,
+    )
+    rows = [
+        {"chunk_index": p.payload["chunk_index"], "text": p.payload["text"]}
+        for p in points
+    ]
+    return sorted(rows, key=lambda r: r["chunk_index"])
+
+
 def search(
     tenant_id: str,
     query_vector: list[float],

@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     policy_corpus_path: str = "/policy_corpus"
     policy_retrieval_top_k: int = 5
 
+    # Reasoning / analysis
+    reasoning_top_k: int = 5  # policy clauses retrieved per document chunk
+    max_chunks_per_analysis: int = 50
+    reasoning_temperature: float = 0.0
+
     # Notifications
     slack_webhook_url: str = ""
     smtp_host: str = ""

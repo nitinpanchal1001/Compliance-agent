@@ -10,6 +10,7 @@ celery_app = Celery(
     backend=settings.celery_result_backend,
     include=[
         "workers.tasks.ingestion",
+        "workers.tasks.analysis",
     ],
 )
 
