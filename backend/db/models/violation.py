@@ -1,7 +1,8 @@
 import enum
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, Float, ForeignKey, String, Text
+from sqlalchemy import DateTime, Enum, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
@@ -15,6 +16,12 @@ class ViolationSeverity(enum.StrEnum):
     high = "high"
     medium = "medium"
     low = "low"
+
+
+class ViolationReviewStatus(enum.StrEnum):
+    pending = "pending"      # awaiting human review
+    confirmed = "confirmed"  # reviewer agrees it's a real violation
+    dismissed = "dismissed"  # reviewer marks it a false positive
 
 
 class Violation(Base):
@@ -32,6 +39,21 @@ class Violation(Base):
     clause_text: Mapped[str] = mapped_column(Text, nullable=False)
     reasoning: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # ── Human review (Phase 6) ──
+    review_status: Mapped[ViolationReviewStatus] = mapped_column(
+        Enum(ViolationReviewStatus, name="violation_review_status"),
+        default=ViolationReviewStatus.pending,
+        nullable=False,
+        index=True,
+    )
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_by: Mapped[str | None] = mapped_column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     case: Mapped["Case"] = relationship("Case", back_populates="violations", lazy="noload")
 

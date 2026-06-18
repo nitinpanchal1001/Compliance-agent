@@ -23,6 +23,10 @@ class HumanReview(Base):
     case_id: Mapped[str] = mapped_column(
         String, ForeignKey("cases.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # NULL for a case-level decision (e.g. escalation); set for a per-violation review.
+    violation_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("violations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     reviewer_id: Mapped[str] = mapped_column(
         String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )

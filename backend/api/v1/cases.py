@@ -1,19 +1,21 @@
 """Cases — trigger compliance analysis on a document and read the results."""
 
-from datetime import datetime
-from typing import Annotated
+from datetime import UTC, datetime
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from agents import risk_scoring
 from core.dependencies import CurrentUser, ReviewerUser
 from db.base import get_db
-from db.models.case import Case
+from db.models.case import Case, CaseStatus, RiskTier
 from db.models.document import Document, DocumentStatus
-from db.models.violation import Violation
+from db.models.human_review import HumanReview, ReviewDecision
+from db.models.violation import Violation, ViolationReviewStatus
 from workers.tasks.analysis import analyze_case
 
 router = APIRouter(prefix="/cases", tags=["cases"])
@@ -35,6 +37,9 @@ class ViolationResponse(BaseModel):
     clause_text: str
     reasoning: str
     confidence: float
+    review_status: str
+    review_note: str | None
+    reviewed_at: datetime | None
 
     @classmethod
     def from_model(cls, v: Violation) -> "ViolationResponse":
@@ -47,7 +52,28 @@ class ViolationResponse(BaseModel):
             clause_text=v.clause_text,
             reasoning=v.reasoning,
             confidence=v.confidence,
+            review_status=v.review_status.value,
+            review_note=v.review_note,
+            reviewed_at=v.reviewed_at,
         )
+
+
+class ReviewViolationRequest(BaseModel):
+    decision: Literal["confirmed", "dismissed"]
+    note: str | None = None
+
+
+class EscalateRequest(BaseModel):
+    note: str | None = None
+
+
+class HumanReviewResponse(BaseModel):
+    id: str
+    violation_id: str | None
+    decision: str
+    note: str | None
+    reviewer_id: str | None
+    reviewed_at: datetime
 
 
 class CaseResponse(BaseModel):
@@ -123,13 +149,24 @@ async def create_case(
 async def list_cases(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
 ):
-    result = await db.execute(
+    stmt = (
         select(Case)
         .where(Case.tenant_id == current_user.tenant_id)
         .options(selectinload(Case.violations))
         .order_by(Case.created_at.desc())
     )
+    if status_filter:
+        try:
+            stmt = stmt.where(Case.status == CaseStatus(status_filter))
+        except ValueError:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"Invalid status '{status_filter}'. "
+                f"Valid: {[s.value for s in CaseStatus]}",
+            )
+    result = await db.execute(stmt)
     return [CaseResponse.from_model(c) for c in result.scalars().all()]
 
 
@@ -154,3 +191,143 @@ async def get_case(
         report_json=case.report_json,
         violations=[ViolationResponse.from_model(v) for v in case.violations],
     )
+
+
+# ── Human-in-the-loop review ──────────────────────────
+
+async def _load_case_with_violations(
+    case_id: str, tenant_id: str, db: AsyncSession
+) -> Case:
+    result = await db.execute(
+        select(Case)
+        .where(Case.id == case_id, Case.tenant_id == tenant_id)
+        .options(selectinload(Case.violations))
+    )
+    case = result.scalar_one_or_none()
+    if case is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Case not found")
+    return case
+
+
+def _case_detail(case: Case) -> CaseDetailResponse:
+    base = CaseResponse.from_model(case)
+    return CaseDetailResponse(
+        **base.model_dump(),
+        report_json=case.report_json,
+        violations=[ViolationResponse.from_model(v) for v in case.violations],
+    )
+
+
+@router.post("/{case_id}/violations/{violation_id}/review", response_model=CaseDetailResponse)
+async def review_violation(
+    case_id: str,
+    violation_id: str,
+    body: ReviewViolationRequest,
+    current_user: ReviewerUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Confirm or dismiss a single violation, then re-score the case from the
+    surviving (non-dismissed) violations."""
+    case = await _load_case_with_violations(case_id, current_user.tenant_id, db)
+    violation = next((v for v in case.violations if v.id == violation_id), None)
+    if violation is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Violation not found in this case")
+
+    now = datetime.now(UTC)
+    violation.review_status = ViolationReviewStatus(body.decision)
+    violation.review_note = body.note
+    violation.reviewed_by = current_user.id
+    violation.reviewed_at = now
+
+    # Immutable audit record of the decision.
+    db.add(
+        HumanReview(
+            case_id=case.id,
+            violation_id=violation.id,
+            reviewer_id=current_user.id,
+            decision=ReviewDecision(body.decision),
+            note=body.note,
+            reviewed_at=now,
+        )
+    )
+
+    # Re-score from non-dismissed violations; keep the original AI score in report.
+    active = [
+        v for v in case.violations
+        if v.review_status != ViolationReviewStatus.dismissed
+    ]
+    assessment = risk_scoring.assess(active)
+    case.risk_score = assessment.score
+    case.risk_tier = RiskTier(assessment.tier)
+    case.report_json = {
+        **(case.report_json or {}),
+        "risk_adjudicated": assessment.breakdown,
+    }
+
+    # Close the case once every violation has been adjudicated.
+    has_pending = any(
+        v.review_status == ViolationReviewStatus.pending for v in case.violations
+    )
+    case.status = CaseStatus.pending_review if has_pending else CaseStatus.closed
+
+    await db.flush()
+    return _case_detail(case)
+
+
+@router.post("/{case_id}/escalate", response_model=CaseResponse)
+async def escalate_case(
+    case_id: str,
+    body: EscalateRequest,
+    current_user: ReviewerUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Escalate a case for senior review. Records an audit entry and keeps the
+    case open (pending_review)."""
+    case = await _load_case_with_violations(case_id, current_user.tenant_id, db)
+    now = datetime.now(UTC)
+    db.add(
+        HumanReview(
+            case_id=case.id,
+            violation_id=None,
+            reviewer_id=current_user.id,
+            decision=ReviewDecision.escalated,
+            note=body.note,
+            reviewed_at=now,
+        )
+    )
+    case.status = CaseStatus.pending_review
+    await db.flush()
+    return CaseResponse.from_model(case)
+
+
+@router.get("/{case_id}/reviews", response_model=list[HumanReviewResponse])
+async def list_reviews(
+    case_id: str,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    # Confirm the case belongs to the caller's tenant.
+    owned = await db.execute(
+        select(Case.id).where(
+            Case.id == case_id, Case.tenant_id == current_user.tenant_id
+        )
+    )
+    if owned.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Case not found")
+
+    rows = await db.execute(
+        select(HumanReview)
+        .where(HumanReview.case_id == case_id)
+        .order_by(HumanReview.reviewed_at.desc())
+    )
+    return [
+        HumanReviewResponse(
+            id=r.id,
+            violation_id=r.violation_id,
+            decision=r.decision.value,
+            note=r.note,
+            reviewer_id=r.reviewer_id,
+            reviewed_at=r.reviewed_at,
+        )
+        for r in rows.scalars().all()
+    ]

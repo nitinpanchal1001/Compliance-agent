@@ -8,8 +8,8 @@ On failure the error is recorded in report_json and the task retries.
 
 import structlog
 
-from agents import reasoning
-from db.models.case import Case, CaseStatus
+from agents import reasoning, risk_scoring
+from db.models.case import Case, CaseStatus, RiskTier
 from db.models.violation import Violation, ViolationSeverity
 from workers.celery_app import celery_app
 from workers.db import get_sync_db
@@ -43,7 +43,11 @@ def analyze_case(self, case_id: str, regulations: list[str] | None = None) -> di
             regulations=regulations,
         )
 
-        # 3. Persist violations + report.
+        # 3. Score the risk (deterministic, from the detected violations).
+        assessment = risk_scoring.assess(result.violations)
+        report = {**result.report, "risk": assessment.breakdown}
+
+        # 4. Persist violations + report + risk.
         with get_sync_db() as db:
             case = db.get(Case, case_id)
 
@@ -67,7 +71,9 @@ def analyze_case(self, case_id: str, regulations: list[str] | None = None) -> di
                 )
 
             case.regulations_checked = result.regulations_checked
-            case.report_json = result.report
+            case.report_json = report
+            case.risk_score = assessment.score
+            case.risk_tier = RiskTier(assessment.tier)
             case.status = (
                 CaseStatus.pending_review if result.violations else CaseStatus.closed
             )
@@ -75,6 +81,8 @@ def analyze_case(self, case_id: str, regulations: list[str] | None = None) -> di
         log.info(
             "analysis.success",
             case_id=case_id,
+            risk_score=assessment.score,
+            risk_tier=assessment.tier,
             violations=len(result.violations),
         )
         return {
