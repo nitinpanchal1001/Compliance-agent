@@ -17,6 +17,7 @@ from db.models.document import Document, DocumentStatus
 from db.models.human_review import HumanReview, ReviewDecision
 from db.models.violation import Violation, ViolationReviewStatus
 from workers.tasks.analysis import analyze_case
+from workers.tasks.notifications import notify
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
@@ -271,6 +272,17 @@ async def review_violation(
     case.status = CaseStatus.pending_review if has_pending else CaseStatus.closed
 
     await db.flush()
+
+    if case.status == CaseStatus.closed:
+        notify.delay(
+            current_user.tenant_id,
+            "case_closed",
+            {
+                "case_id": case.id,
+                "risk_score": case.risk_score,
+                "risk_tier": case.risk_tier.value if case.risk_tier else None,
+            },
+        )
     return _case_detail(case)
 
 
@@ -297,6 +309,17 @@ async def escalate_case(
     )
     case.status = CaseStatus.pending_review
     await db.flush()
+
+    notify.delay(
+        current_user.tenant_id,
+        "case_escalated",
+        {
+            "case_id": case.id,
+            "reviewer_id": current_user.id,
+            "reviewer_email": current_user.email,
+            "note": body.note,
+        },
+    )
     return CaseResponse.from_model(case)
 
 

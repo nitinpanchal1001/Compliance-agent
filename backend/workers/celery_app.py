@@ -11,6 +11,7 @@ celery_app = Celery(
     include=[
         "workers.tasks.ingestion",
         "workers.tasks.analysis",
+        "workers.tasks.notifications",
     ],
 )
 

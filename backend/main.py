@@ -4,7 +4,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.v1 import auth, cases, documents, policies, tenants, users
+from api.v1 import auth, cases, documents, notifications, policies, tenants, users
 from core.config import get_settings
 
 log = structlog.get_logger()
@@ -42,6 +42,7 @@ app.include_router(users.router, prefix=API_PREFIX)
 app.include_router(documents.router, prefix=API_PREFIX)
 app.include_router(policies.router, prefix=API_PREFIX)
 app.include_router(cases.router, prefix=API_PREFIX)
+app.include_router(notifications.router, prefix=API_PREFIX)
 
 
 @app.get("/health", tags=["ops"])

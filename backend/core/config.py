@@ -61,6 +61,8 @@ class Settings(BaseSettings):
     reasoning_temperature: float = 0.0
 
     # Notifications
+    notifications_enabled: bool = True
+    notify_from_email: str = "compliance-agent@example.com"
     slack_webhook_url: str = ""
     smtp_host: str = ""
     smtp_port: int = 587

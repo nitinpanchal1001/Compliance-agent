@@ -13,6 +13,7 @@ from db.models.case import Case, CaseStatus, RiskTier
 from db.models.violation import Violation, ViolationSeverity
 from workers.celery_app import celery_app
 from workers.db import get_sync_db
+from workers.tasks.notifications import notify
 
 log = structlog.get_logger()
 
@@ -77,6 +78,7 @@ def analyze_case(self, case_id: str, regulations: list[str] | None = None) -> di
             case.status = (
                 CaseStatus.pending_review if result.violations else CaseStatus.closed
             )
+            case_status = case.status.value
 
         log.info(
             "analysis.success",
@@ -84,6 +86,20 @@ def analyze_case(self, case_id: str, regulations: list[str] | None = None) -> di
             risk_score=assessment.score,
             risk_tier=assessment.tier,
             violations=len(result.violations),
+        )
+
+        # Notify that analysis completed (channels/recipients resolved per tenant).
+        notify.delay(
+            tenant_id,
+            "case_analyzed",
+            {
+                "case_id": case_id,
+                "document_id": document_id,
+                "risk_score": assessment.score,
+                "risk_tier": assessment.tier,
+                "violation_count": len(result.violations),
+                "status": case_status,
+            },
         )
         return {
             "status": "analyzed",
