@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -19,44 +27,216 @@ const ADMIN_NAV = [
   { href: "/settings", label: "Settings", icon: IconGear },
 ];
 
-export function Sidebar() {
+// ── Collapse / mobile-drawer state, shared by Sidebar + Topbar ──
+
+interface SidebarState {
+  collapsed: boolean;
+  toggleCollapsed: () => void;
+  mobileOpen: boolean;
+  setMobileOpen: (v: boolean) => void;
+}
+
+const SidebarCtx = createContext<SidebarState | null>(null);
+const COLLAPSE_KEY = "ca_sidebar_collapsed";
+
+export function SidebarProvider({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
-  const { me } = useAuth();
-  const isAdmin = me?.role === "admin";
+
+  // Restore the persisted desktop collapse preference.
+  useEffect(() => {
+    if (localStorage.getItem(COLLAPSE_KEY) === "1") setCollapsed(true);
+  }, []);
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+      return next;
+    });
+  }, []);
+
+  // Close the mobile drawer whenever the route changes.
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Lock background scroll while the drawer is open.
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileOpen]);
 
   return (
-    <aside className="hidden md:flex md:w-60 shrink-0 flex-col gap-2 p-4">
-      <Link href="/dashboard" className="mb-5 flex items-center gap-2.5 px-2 py-2">
-        <Monogram />
-        <span className="font-display text-lg tracking-tight">
-          Themis<span className="text-teal">.</span>
-        </span>
-      </Link>
+    <SidebarCtx.Provider value={{ collapsed, toggleCollapsed, mobileOpen, setMobileOpen }}>
+      {children}
+    </SidebarCtx.Provider>
+  );
+}
 
-      <nav className="flex flex-col gap-1">
+function useSidebar() {
+  const ctx = useContext(SidebarCtx);
+  if (!ctx) throw new Error("useSidebar must be used within SidebarProvider");
+  return ctx;
+}
+
+export function Sidebar() {
+  const { collapsed, mobileOpen, setMobileOpen } = useSidebar();
+
+  return (
+    <>
+      {/* Desktop rail — collapses to an icon-only column */}
+      <aside
+        className={`hidden shrink-0 flex-col gap-2 overflow-hidden p-4 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:flex ${
+          collapsed ? "md:w-[5.25rem]" : "md:w-60"
+        }`}
+      >
+        <SidebarBody collapsed={collapsed} />
+      </aside>
+
+      {/* Mobile drawer + backdrop */}
+      <div className="md:hidden">
+        <div
+          onClick={() => setMobileOpen(false)}
+          aria-hidden
+          className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${
+            mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
+          }`}
+        />
+        <aside
+          className={`fixed left-0 top-0 z-50 flex h-full w-72 flex-col gap-2 overflow-y-auto p-4 glass-strong transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            mobileOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+          aria-hidden={!mobileOpen}
+        >
+          <SidebarBody collapsed={false} onNavigate={() => setMobileOpen(false)} showClose />
+        </aside>
+      </div>
+    </>
+  );
+}
+
+function SidebarBody({
+  collapsed,
+  onNavigate,
+  showClose = false,
+}: {
+  collapsed: boolean;
+  onNavigate?: () => void;
+  showClose?: boolean;
+}) {
+  const pathname = usePathname();
+  const { me } = useAuth();
+  const { toggleCollapsed, setMobileOpen } = useSidebar();
+  const isAdmin = me?.role === "admin";
+
+  const navRef = useRef<HTMLElement>(null);
+  const settled = useRef(false);
+  const [pill, setPill] = useState({ top: 0, height: 0, visible: false, instant: true });
+
+  // Slide a single highlight to whichever item is active (PS5-style).
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const active = nav.querySelector<HTMLElement>('a[data-active="true"]');
+    if (active) {
+      setPill({
+        top: active.offsetTop,
+        height: active.offsetHeight,
+        visible: true,
+        instant: !settled.current, // first placement snaps; later ones glide
+      });
+      settled.current = true;
+    } else {
+      setPill((p) => ({ ...p, visible: false }));
+    }
+  }, [pathname, isAdmin, collapsed]);
+
+  return (
+    <>
+      <div className={`mb-5 flex items-center px-2 py-2 ${collapsed ? "justify-center" : "gap-2.5"}`}>
+        <Link
+          href="/dashboard"
+          onClick={onNavigate}
+          className={`flex items-center ${collapsed ? "" : "gap-2.5"}`}
+        >
+          <Monogram />
+          {!collapsed && (
+            <span className="font-display text-lg tracking-tight">
+              Themis<span className="text-teal">.</span>
+            </span>
+          )}
+        </Link>
+        {showClose && (
+          <button
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+            className="ml-auto grid h-9 w-9 place-items-center rounded-xl text-muted transition hover:bg-[var(--fill-1)] hover:text-fg"
+          >
+            <IconClose />
+          </button>
+        )}
+      </div>
+
+      <nav ref={navRef} className="relative flex flex-col gap-1">
+        <span
+          aria-hidden
+          className={`nav-pill glass pointer-events-none absolute inset-x-0 z-0 rounded-xl ${
+            pill.instant ? "nav-pill-instant" : ""
+          }`}
+          style={{
+            transform: `translateY(${pill.top}px)`,
+            height: pill.height,
+            opacity: pill.visible ? 1 : 0,
+          }}
+        >
+          <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[linear-gradient(var(--teal),var(--violet))]" />
+        </span>
+
         {NAV.map((item) => (
-          <NavItem key={item.href} {...item} pathname={pathname} />
+          <NavItem key={item.href} {...item} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
         ))}
 
         {isAdmin && (
           <>
-            <div className="mb-1 mt-5 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-faint">
-              Workspace
-            </div>
+            {!collapsed ? (
+              <div className="mb-1 mt-5 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-faint">
+                Workspace
+              </div>
+            ) : (
+              <div className="mx-3 my-3 h-px bg-[var(--line)]" />
+            )}
             {ADMIN_NAV.map((item) => (
-              <NavItem key={item.href} {...item} pathname={pathname} />
+              <NavItem key={item.href} {...item} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
             ))}
           </>
         )}
       </nav>
 
-      <div className="mt-auto px-2">
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--glass-border)] bg-[var(--fill-1)] px-3 py-2 text-xs text-muted">
-          <span className="pulse-dot h-2 w-2 rounded-full bg-teal" />
-          <span>Live · agents online</span>
-        </div>
+      <div className="mt-auto flex flex-col gap-2 px-1">
+        {!collapsed && (
+          <div className="flex items-center gap-2 rounded-xl border border-[var(--glass-border)] bg-[var(--fill-1)] px-3 py-2 text-xs text-muted">
+            <span className="pulse-dot h-2 w-2 rounded-full bg-teal" />
+            <span>Live · agents online</span>
+          </div>
+        )}
+        {/* Collapse toggle — desktop only */}
+        <button
+          onClick={toggleCollapsed}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className={`hidden items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted transition hover:bg-[var(--fill-1)] hover:text-fg md:flex ${
+            collapsed ? "justify-center" : ""
+          }`}
+        >
+          <IconChevron className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`} />
+          {!collapsed && <span>Collapse</span>}
+        </button>
       </div>
-    </aside>
+    </>
   );
 }
 
@@ -65,34 +245,52 @@ function NavItem({
   label,
   icon: Icon,
   pathname,
+  collapsed = false,
+  onNavigate,
 }: {
   href: string;
   label: string;
   icon: (p: { className?: string }) => React.ReactNode;
   pathname: string;
+  collapsed?: boolean;
+  onNavigate?: () => void;
 }) {
   const active = pathname === href || pathname.startsWith(href + "/");
   return (
     <Link
       href={href}
-      className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
-        active ? "glass text-fg" : "text-muted hover:text-fg hover:bg-[var(--fill-1)]"
-      }`}
+      onClick={onNavigate}
+      data-active={active}
+      title={collapsed ? label : undefined}
+      className={`group relative z-10 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-200 ${
+        collapsed ? "justify-center" : ""
+      } ${active ? "text-fg" : "text-muted hover:text-fg hover:bg-[var(--fill-1)]"}`}
     >
-      {active && (
-        <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[linear-gradient(var(--teal),var(--violet))]" />
-      )}
-      <Icon className={active ? "text-teal" : "text-faint group-hover:text-muted"} />
-      {label}
+      <Icon
+        className={`shrink-0 transition-colors duration-200 ${
+          active ? "text-teal" : "text-faint group-hover:text-muted"
+        }`}
+      />
+      {!collapsed && <span className="whitespace-nowrap">{label}</span>}
     </Link>
   );
 }
 
 export function Topbar({ title }: { title: string }) {
   const { me, logout } = useAuth();
+  const { setMobileOpen } = useSidebar();
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between gap-4 px-5 py-5">
-      <h1 className="font-display text-2xl md:text-[1.7rem] leading-none">{title}</h1>
+      <div className="flex min-w-0 items-center gap-3">
+        <button
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open menu"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[var(--glass-border)] glass text-muted transition hover:text-fg md:hidden"
+        >
+          <IconMenu />
+        </button>
+        <h1 className="truncate font-display text-2xl leading-none md:text-[1.7rem]">{title}</h1>
+      </div>
       <div className="flex items-center gap-2.5">
         <ThemeToggle />
         {me && (
@@ -224,6 +422,27 @@ function IconGear({ className = "" }: { className?: string }) {
     <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+    </svg>
+  );
+}
+function IconMenu() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M3 6h18M3 12h18M3 18h18" />
+    </svg>
+  );
+}
+function IconClose() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+function IconChevron({ className = "" }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 18l-6-6 6-6" />
     </svg>
   );
 }

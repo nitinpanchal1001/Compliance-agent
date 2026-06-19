@@ -208,6 +208,19 @@ body {
 /* theme-toggle knob */
 .theme-knob { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
 
+/* sliding sidebar selection — a single highlight that glides between items,
+   with a touch of overshoot for that springy PS5 feel */
+.nav-pill {
+  will-change: transform, height;
+  transition:
+    transform 0.46s cubic-bezier(0.34, 1.4, 0.5, 1),
+    height 0.46s cubic-bezier(0.34, 1.4, 0.5, 1),
+    opacity 0.25s ease;
+}
+.nav-pill-instant {
+  transition: opacity 0.25s ease;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--line-strong) transparent;
@@ -220,5 +233,5 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fade-up, .pulse-dot, .spin, .theme-knob { animation: none; transition: none; }
+  .fade-up, .pulse-dot, .spin, .theme-knob, .nav-pill { animation: none; transition: none; }
 }

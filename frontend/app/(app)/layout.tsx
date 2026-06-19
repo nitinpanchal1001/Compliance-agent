@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { Sidebar, Topbar } from "@/components/Nav";
+import { Sidebar, Topbar, SidebarProvider } from "@/components/Nav";
 import { Spinner } from "@/components/ui";
 
 const TITLES: { match: (p: string) => boolean; title: string }[] = [
@@ -37,12 +37,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const title = TITLES.find((t) => t.match(pathname))?.title ?? "Overview";
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar title={title} />
-        <main className="flex-1 px-5 pb-12">{children}</main>
+    <SidebarProvider>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Topbar title={title} />
+          <main className="flex-1 px-5 pb-12">{children}</main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
