@@ -1,12 +1,13 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.dependencies import AdminUser, CurrentUser
 from core.security import hash_password
+from core.validators import Email
 from db.base import get_db
 from db.models.user import User, UserRole
 
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 # ── Schemas ───────────────────────────────────────────
 
 class CreateUserRequest(BaseModel):
-    email: EmailStr
+    email: Email
     password: str
     full_name: str | None = None
     role: UserRole = UserRole.viewer

@@ -1,26 +1,224 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════
+   LEXICON — an editorial design system for compliance work.
+   Warm paper in light, deep ink in dark. One considered palette:
+   jade + indigo, with earthy risk signals. Serif display, mono data.
+   ═══════════════════════════════════════════════════════════ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* surfaces */
+  --bg: #f1eee6;
+  --bg-2: #e7e3d9;
+  --fg: #1b1822;
+  --muted: #585569;
+  --faint: #918d9c;
+
+  /* fills + hairlines (light = ink-tinted) */
+  --fill-1: rgba(27, 24, 34, 0.045);
+  --fill-2: rgba(27, 24, 34, 0.075);
+  --fill-3: rgba(27, 24, 34, 0.11);
+  --line: rgba(27, 24, 34, 0.10);
+  --line-strong: rgba(27, 24, 34, 0.24);
+
+  /* glass */
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-strong: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(27, 24, 34, 0.10);
+  --glass-hi: rgba(255, 255, 255, 0.75);
+  --shadow: 0 1px 2px rgba(27, 24, 34, 0.04), 0 12px 30px -16px rgba(27, 24, 34, 0.25);
+  --shadow-lg: 0 2px 4px rgba(27, 24, 34, 0.05), 0 24px 48px -22px rgba(27, 24, 34, 0.32);
+
+  /* brand — jade + indigo, with steel & clay support */
+  --teal: #157f66;
+  --violet: #4b45cf;
+  --blue: #3c6e92;
+  --pink: #bd6850;
+
+  /* risk signals — earthy, legible */
+  --crit: #bb392b;
+  --high: #c0772e;
+  --med: #a4842b;
+  --low: #2f8a6a;
+
+  /* ambient backdrop tints */
+  --amb-1: rgba(21, 127, 102, 0.10);
+  --amb-2: rgba(75, 69, 207, 0.08);
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --bg: #100e15;
+  --bg-2: #17141f;
+  --fg: #ece9f2;
+  --muted: #a8a3b8;
+  --faint: #716c82;
+
+  --fill-1: rgba(255, 255, 255, 0.05);
+  --fill-2: rgba(255, 255, 255, 0.09);
+  --fill-3: rgba(255, 255, 255, 0.13);
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.28);
+
+  --glass: rgba(255, 255, 255, 0.045);
+  --glass-strong: rgba(255, 255, 255, 0.072);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-hi: rgba(255, 255, 255, 0.16);
+  --shadow: 0 12px 34px -16px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 24px 56px -20px rgba(0, 0, 0, 0.7);
+
+  --teal: #2fb492;
+  --violet: #7e77ee;
+  --blue: #5e93c2;
+  --pink: #de876b;
+
+  --crit: #f0675c;
+  --high: #eca24f;
+  --med: #d8b252;
+  --low: #45c194;
+
+  --amb-1: rgba(47, 180, 146, 0.14);
+  --amb-2: rgba(126, 119, 238, 0.13);
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-teal: var(--teal);
+  --color-violet: var(--violet);
+  --color-blue: var(--blue);
+  --color-pink: var(--pink);
+  --color-crit: var(--crit);
+  --color-high: var(--high);
+  --color-med: var(--med);
+  --color-low: var(--low);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+body {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.font-display {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* ── Ambient backdrop — restrained, not neon ─────────────── */
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(70% 55% at 78% 8%, var(--amb-1), transparent 60%),
+    radial-gradient(60% 50% at 12% 92%, var(--amb-2), transparent 62%),
+    var(--bg);
+}
+/* faint engraved horizon line for a printed feel */
+.aurora::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px);
+  background-size: 100% 46px;
+  opacity: 0.4;
+  mask-image: radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 75%);
+}
+.aurora-grain {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: radial-gradient(var(--fill-1) 0.5px, transparent 0.5px);
+  background-size: 4px 4px;
+}
+
+/* ── Glass surfaces ──────────────────────────────────────── */
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow), inset 0 1px 0 0 var(--glass-hi);
+}
+.glass-strong {
+  background: var(--glass-strong);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 0 var(--glass-hi);
+}
+.glass-hover {
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+.glass-hover:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 0 var(--glass-hi);
+}
+
+/* ── Flourishes ──────────────────────────────────────────── */
+.text-gradient {
+  background: linear-gradient(100deg, var(--teal), var(--violet));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ring-glow {
+  box-shadow: 0 0 0 1px var(--glass-border), 0 0 28px -8px var(--teal);
+}
+.hairline {
+  border-color: var(--line);
+}
+
+.fade-up {
+  animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.pulse-dot {
+  animation: pulseDot 2s ease-in-out infinite;
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 color-mix(in srgb, var(--teal) 45%, transparent); }
+  50% { opacity: 0.6; box-shadow: 0 0 0 6px transparent; }
+}
+.spin { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* theme-toggle knob */
+.theme-knob { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 99px; }
+
+::selection {
+  background: color-mix(in srgb, var(--teal) 28%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up, .pulse-dot, .spin, .theme-knob { animation: none; transition: none; }
 }

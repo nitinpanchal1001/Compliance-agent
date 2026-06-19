@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from jose import JWTError
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +14,7 @@ from core.security import (
     decode_token,
     verify_password,
 )
+from core.validators import Email
 from db.base import get_db
 from db.models.user import User
 
@@ -23,7 +24,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # ── Request / Response schemas ────────────────────────
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: Email
     password: str
 
 
