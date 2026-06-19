@@ -12,6 +12,9 @@ const TITLES: { match: (p: string) => boolean; title: string }[] = [
   { match: (p) => /^\/cases\/[^/]+$/.test(p), title: "Case detail" },
   { match: (p) => p.startsWith("/cases"), title: "Cases" },
   { match: (p) => p.startsWith("/policies"), title: "Policy corpus" },
+  { match: (p) => p.startsWith("/team"), title: "Team" },
+  { match: (p) => p.startsWith("/audit"), title: "Audit log" },
+  { match: (p) => p.startsWith("/settings"), title: "Settings" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

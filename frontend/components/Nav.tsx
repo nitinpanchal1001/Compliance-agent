@@ -13,8 +13,17 @@ const NAV = [
   { href: "/policies", label: "Policies", icon: IconBook },
 ];
 
+const ADMIN_NAV = [
+  { href: "/team", label: "Team", icon: IconUsers },
+  { href: "/audit", label: "Audit log", icon: IconScroll },
+  { href: "/settings", label: "Settings", icon: IconGear },
+];
+
 export function Sidebar() {
   const pathname = usePathname();
+  const { me } = useAuth();
+  const isAdmin = me?.role === "admin";
+
   return (
     <aside className="hidden md:flex md:w-60 shrink-0 flex-col gap-2 p-4">
       <Link href="/dashboard" className="mb-5 flex items-center gap-2.5 px-2 py-2">
@@ -25,26 +34,20 @@ export function Sidebar() {
       </Link>
 
       <nav className="flex flex-col gap-1">
-        {NAV.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
-                active
-                  ? "glass text-fg"
-                  : "text-muted hover:text-fg hover:bg-[var(--fill-1)]"
-              }`}
-            >
-              {active && (
-                <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[linear-gradient(var(--teal),var(--violet))]" />
-              )}
-              <Icon className={active ? "text-teal" : "text-faint group-hover:text-muted"} />
-              {label}
-            </Link>
-          );
-        })}
+        {NAV.map((item) => (
+          <NavItem key={item.href} {...item} pathname={pathname} />
+        ))}
+
+        {isAdmin && (
+          <>
+            <div className="mb-1 mt-5 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-faint">
+              Workspace
+            </div>
+            {ADMIN_NAV.map((item) => (
+              <NavItem key={item.href} {...item} pathname={pathname} />
+            ))}
+          </>
+        )}
       </nav>
 
       <div className="mt-auto px-2">
@@ -54,6 +57,34 @@ export function Sidebar() {
         </div>
       </div>
     </aside>
+  );
+}
+
+function NavItem({
+  href,
+  label,
+  icon: Icon,
+  pathname,
+}: {
+  href: string;
+  label: string;
+  icon: (p: { className?: string }) => React.ReactNode;
+  pathname: string;
+}) {
+  const active = pathname === href || pathname.startsWith(href + "/");
+  return (
+    <Link
+      href={href}
+      className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
+        active ? "glass text-fg" : "text-muted hover:text-fg hover:bg-[var(--fill-1)]"
+      }`}
+    >
+      {active && (
+        <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[linear-gradient(var(--teal),var(--violet))]" />
+      )}
+      <Icon className={active ? "text-teal" : "text-faint group-hover:text-muted"} />
+      {label}
+    </Link>
   );
 }
 
@@ -169,6 +200,30 @@ function IconBook({ className = "" }: { className?: string }) {
   return (
     <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5Z" /><path d="M19 17H6a2 2 0 0 0-2 2" />
+    </svg>
+  );
+}
+function IconUsers({ className = "" }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+function IconScroll({ className = "" }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 21h9a3 3 0 0 0 3-3V9a2 2 0 0 0-2-2h-2" /><path d="M19 17V5a2 2 0 0 0-2-2H4" />
+      <path d="M4 3a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h2V5a2 2 0 0 0-2-2Z" /><path d="M9 8h6M9 12h6M9 16h4" />
+    </svg>
+  );
+}
+function IconGear({ className = "" }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
     </svg>
   );
 }

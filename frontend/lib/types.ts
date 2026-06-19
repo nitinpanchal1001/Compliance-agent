@@ -93,3 +93,44 @@ export interface PolicyMatch {
   text: string;
   score: number;
 }
+
+export interface TenantInfo {
+  id: string;
+  name: string;
+  slug: string;
+  settings: Record<string, unknown>;
+  is_active: boolean;
+}
+
+export interface UserRow {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: Role;
+  is_active: boolean;
+  tenant_id: string;
+}
+
+export interface AuditEntry {
+  id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  user_id: string | null;
+  extra_data: Record<string, unknown>;
+  ip_address: string | null;
+  created_at: string;
+}
+
+export interface NotificationConfig {
+  enabled: boolean;
+  email_enabled: boolean;
+  email_recipients: string[];
+  events: string[] | null;
+  smtp_configured: boolean;
+}
+
+export interface DownloadInfo {
+  url: string;
+  expires_seconds: number;
+}
