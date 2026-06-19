@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy import select
@@ -51,7 +51,16 @@ def require_role(*roles: UserRole):
     return check
 
 
+def get_client_ip(request: Request) -> str:
+    """Best-effort client IP, honoring a reverse proxy's X-Forwarded-For."""
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 # Convenience type aliases for route signatures
 CurrentUser = Annotated[User, Depends(get_current_user)]
 AdminUser = Annotated[User, Depends(require_role(UserRole.admin))]
 ReviewerUser = Annotated[User, Depends(require_role(UserRole.admin, UserRole.reviewer))]
+ClientIP = Annotated[str, Depends(get_client_ip)]

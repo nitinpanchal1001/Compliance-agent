@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from agents import risk_scoring
-from core.dependencies import CurrentUser, ReviewerUser
+from core import audit
+from core.dependencies import ClientIP, CurrentUser, ReviewerUser
 from db.base import get_db
 from db.models.case import Case, CaseStatus, RiskTier
 from db.models.document import Document, DocumentStatus
@@ -116,6 +117,7 @@ class CaseDetailResponse(CaseResponse):
 async def create_case(
     body: CreateCaseRequest,
     current_user: ReviewerUser,
+    ip: ClientIP,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     # The document must exist in this tenant and be fully ingested.
@@ -143,6 +145,17 @@ async def create_case(
 
     analyze_case.delay(case.id, body.regulations)
 
+    await audit.record(
+        db,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        action="case.create",
+        entity_type="case",
+        entity_id=case.id,
+        extra={"document_id": doc.id, "regulations": body.regulations},
+        ip=ip,
+    )
+
     return CaseResponse.from_model(case, violation_count=0)
 
 
@@ -151,6 +164,8 @@ async def list_cases(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
     status_filter: Annotated[str | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     stmt = (
         select(Case)
@@ -167,6 +182,7 @@ async def list_cases(
                 f"Invalid status '{status_filter}'. "
                 f"Valid: {[s.value for s in CaseStatus]}",
             )
+    stmt = stmt.limit(limit).offset(offset)
     result = await db.execute(stmt)
     return [CaseResponse.from_model(c) for c in result.scalars().all()]
 
@@ -225,6 +241,7 @@ async def review_violation(
     violation_id: str,
     body: ReviewViolationRequest,
     current_user: ReviewerUser,
+    ip: ClientIP,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Confirm or dismiss a single violation, then re-score the case from the
@@ -240,7 +257,7 @@ async def review_violation(
     violation.reviewed_by = current_user.id
     violation.reviewed_at = now
 
-    # Immutable audit record of the decision.
+    # Immutable review record (review trail) + general audit-log entry.
     db.add(
         HumanReview(
             case_id=case.id,
@@ -250,6 +267,16 @@ async def review_violation(
             note=body.note,
             reviewed_at=now,
         )
+    )
+    await audit.record(
+        db,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        action="violation.review",
+        entity_type="violation",
+        entity_id=violation.id,
+        extra={"case_id": case.id, "decision": body.decision},
+        ip=ip,
     )
 
     # Re-score from non-dismissed violations; keep the original AI score in report.
@@ -291,6 +318,7 @@ async def escalate_case(
     case_id: str,
     body: EscalateRequest,
     current_user: ReviewerUser,
+    ip: ClientIP,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Escalate a case for senior review. Records an audit entry and keeps the
@@ -306,6 +334,16 @@ async def escalate_case(
             note=body.note,
             reviewed_at=now,
         )
+    )
+    await audit.record(
+        db,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        action="case.escalate",
+        entity_type="case",
+        entity_id=case.id,
+        extra={"note": body.note},
+        ip=ip,
     )
     case.status = CaseStatus.pending_review
     await db.flush()

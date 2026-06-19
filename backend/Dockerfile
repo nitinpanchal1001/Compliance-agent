@@ -20,3 +20,7 @@ COPY --from=deps /usr/local/bin /usr/local/bin
 COPY . .
 
 EXPOSE 8000
+
+# Production default: multi-worker, no reload. docker-compose overrides this
+# with a --reload command for local development.
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

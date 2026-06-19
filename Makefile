@@ -48,4 +48,4 @@ lint:
 	cd backend && uv run ruff check . && uv run ruff format --check .
 
 test:
-	docker compose exec api uv run pytest
+	docker compose exec api uv run --extra dev pytest -q

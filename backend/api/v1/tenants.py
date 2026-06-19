@@ -6,7 +6,9 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.dependencies import AdminUser, CurrentUser
+from core import audit
+from core.dependencies import AdminUser, ClientIP, CurrentUser
+from core.ratelimit import SignupRate
 from core.security import hash_password
 from core.validators import Email
 from db.base import get_db
@@ -58,6 +60,8 @@ class UpdateTenantRequest(BaseModel):
 @router.post("", response_model=TenantResponse, status_code=status.HTTP_201_CREATED)
 async def create_tenant(
     body: CreateTenantRequest,
+    ip: ClientIP,
+    _rl: SignupRate,
     db: Annotated[AsyncSession, Depends(get_db)],
     # Note: this endpoint is intentionally open for the very first tenant bootstrap.
     # After that, protect it behind AdminUser in a super-admin setup if needed.
@@ -81,6 +85,18 @@ async def create_tenant(
         role=UserRole.admin,
     )
     db.add(admin)
+    await db.flush()
+
+    await audit.record(
+        db,
+        tenant_id=tenant.id,
+        user_id=admin.id,
+        action="tenant.create",
+        entity_type="tenant",
+        entity_id=tenant.id,
+        extra={"slug": tenant.slug},
+        ip=ip,
+    )
 
     return TenantResponse(
         id=tenant.id,
@@ -113,6 +129,7 @@ async def get_my_tenant(
 async def update_my_tenant(
     body: UpdateTenantRequest,
     current_user: AdminUser,
+    ip: ClientIP,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     result = await db.execute(select(Tenant).where(Tenant.id == current_user.tenant_id))
@@ -124,6 +141,17 @@ async def update_my_tenant(
         tenant.name = body.name
     if body.settings is not None:
         tenant.settings = {**tenant.settings, **body.settings}
+
+    await audit.record(
+        db,
+        tenant_id=tenant.id,
+        user_id=current_user.id,
+        action="tenant.update",
+        entity_type="tenant",
+        entity_id=tenant.id,
+        extra={"fields": [k for k in ("name", "settings") if getattr(body, k) is not None]},
+        ip=ip,
+    )
 
     return TenantResponse(
         id=tenant.id,

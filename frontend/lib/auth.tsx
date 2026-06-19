@@ -53,6 +53,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    const refresh = tokenStore.refresh;
+    if (refresh) {
+      // Revoke the refresh token server-side; ignore failures (best-effort).
+      api("/auth/logout", { method: "POST", auth: false, body: { refresh_token: refresh } }).catch(
+        () => {}
+      );
+    }
     tokenStore.clear();
     setMe(null);
     router.push("/login");

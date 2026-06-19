@@ -54,7 +54,8 @@ async function tryRefresh(): Promise<boolean> {
   });
   if (!res.ok) return false;
   const data = await res.json();
-  tokenStore.set(data.access_token);
+  // Refresh tokens rotate server-side — persist the new pair.
+  tokenStore.set(data.access_token, data.refresh_token);
   return true;
 }
 

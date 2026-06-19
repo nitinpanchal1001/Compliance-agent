@@ -6,14 +6,14 @@ from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import storage
+from core import audit, storage
 from core.config import get_settings
-from core.dependencies import CurrentUser, ReviewerUser
+from core.dependencies import ClientIP, CurrentUser, ReviewerUser
 from db.base import get_db
 from db.models.document import Document, DocumentFileType, DocumentStatus
 from workers.tasks.ingestion import ingest_document
@@ -79,6 +79,7 @@ class DownloadResponse(BaseModel):
 @router.post("", response_model=DocumentResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_document(
     current_user: ReviewerUser,
+    ip: ClientIP,
     db: Annotated[AsyncSession, Depends(get_db)],
     file: UploadFile = File(...),
     file_type: Annotated[DocumentFileType | None, Form()] = None,
@@ -114,6 +115,17 @@ async def upload_document(
     # Enqueue async ingestion (runs in the Celery worker).
     ingest_document.delay(doc.id)
 
+    await audit.record(
+        db,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        action="document.upload",
+        entity_type="document",
+        entity_id=doc.id,
+        extra={"name": doc.name, "file_type": doc.file_type.value},
+        ip=ip,
+    )
+
     return DocumentResponse.from_model(doc)
 
 
@@ -121,11 +133,15 @@ async def upload_document(
 async def list_documents(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     result = await db.execute(
         select(Document)
         .where(Document.tenant_id == current_user.tenant_id)
         .order_by(Document.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
     return [DocumentResponse.from_model(d) for d in result.scalars().all()]
 
@@ -155,11 +171,22 @@ async def download_document(
 async def delete_document(
     document_id: str,
     current_user: ReviewerUser,
+    ip: ClientIP,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     doc = await _get_owned_document(document_id, current_user.tenant_id, db)
     # Best-effort cleanup of the raw object; row + cascade handle the rest.
     storage.delete_object(doc.s3_key)
+    await audit.record(
+        db,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        action="document.delete",
+        entity_type="document",
+        entity_id=doc.id,
+        extra={"name": doc.name},
+        ip=ip,
+    )
     await db.delete(doc)
 
 

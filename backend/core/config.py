@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     max_chunks_per_analysis: int = 50
     reasoning_temperature: float = 0.0
 
+    # Security
+    rate_limit_enabled: bool = True
+
     # Notifications
     notifications_enabled: bool = True
     notify_from_email: str = "compliance-agent@example.com"

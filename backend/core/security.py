@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import bcrypt
@@ -9,6 +10,7 @@ settings = get_settings()
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
+REFRESH_TOKEN_EXPIRE_SECONDS = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
 ALGORITHM = "HS256"
 
 
@@ -32,15 +34,19 @@ def create_access_token(subject: str, tenant_id: str, role: str) -> str:
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
 
 
-def create_refresh_token(subject: str, tenant_id: str) -> str:
+def create_refresh_token(subject: str, tenant_id: str) -> tuple[str, str]:
+    """Returns (token, jti). The jti is stored server-side so the token can be
+    rotated on use and revoked (logout / leaked-token kill)."""
+    jti = str(uuid.uuid4())
     expire = datetime.now(UTC) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     payload = {
         "sub": subject,
         "tenant_id": tenant_id,
         "type": "refresh",
+        "jti": jti,
         "exp": expire,
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
+    return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM), jti
 
 
 def decode_token(token: str) -> dict:

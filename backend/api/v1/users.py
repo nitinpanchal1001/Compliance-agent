@@ -1,11 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.dependencies import AdminUser, CurrentUser
+from core import audit
+from core.dependencies import AdminUser, ClientIP, CurrentUser
 from core.security import hash_password
 from core.validators import Email
 from db.base import get_db
@@ -63,6 +64,7 @@ async def get_me(current_user: CurrentUser):
 async def create_user(
     body: CreateUserRequest,
     current_user: AdminUser,
+    ip: ClientIP,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     existing = await db.execute(
@@ -87,6 +89,17 @@ async def create_user(
     db.add(user)
     await db.flush()
 
+    await audit.record(
+        db,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        action="user.create",
+        entity_type="user",
+        entity_id=user.id,
+        extra={"email": user.email, "role": user.role.value},
+        ip=ip,
+    )
+
     return UserResponse(
         id=user.id,
         email=user.email,
@@ -101,9 +114,15 @@ async def create_user(
 async def list_users(
     current_user: AdminUser,
     db: Annotated[AsyncSession, Depends(get_db)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     result = await db.execute(
-        select(User).where(User.tenant_id == current_user.tenant_id)
+        select(User)
+        .where(User.tenant_id == current_user.tenant_id)
+        .order_by(User.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
     users = result.scalars().all()
     return [
@@ -124,6 +143,7 @@ async def update_user(
     user_id: str,
     body: UpdateUserRequest,
     current_user: AdminUser,
+    ip: ClientIP,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     result = await db.execute(
@@ -142,12 +162,27 @@ async def update_user(
             detail="Cannot modify your own account",
         )
 
+    changes: dict = {}
     if body.role is not None:
         user.role = body.role
+        changes["role"] = body.role.value
     if body.is_active is not None:
         user.is_active = body.is_active
+        changes["is_active"] = body.is_active
     if body.full_name is not None:
         user.full_name = body.full_name
+        changes["full_name"] = body.full_name
+
+    await audit.record(
+        db,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        action="user.update",
+        entity_type="user",
+        entity_id=user.id,
+        extra={"changes": changes},
+        ip=ip,
+    )
 
     return UserResponse(
         id=user.id,
