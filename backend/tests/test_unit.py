@@ -21,24 +21,44 @@ def test_risk_scoring_empty_is_low():
 
 
 def test_risk_scoring_caps_at_100():
-    a = risk_scoring.assess([_v("critical", 1.0) for _ in range(5)])
-    assert a.score == 100
+    a = risk_scoring.assess([_v("critical", 1.0) for _ in range(10)])
+    assert a.score <= 100
     assert a.tier == "critical"
 
 
-def test_risk_scoring_tiers():
-    assert risk_scoring.assess([_v("high", 1.0)]).tier == "medium"  # 25 pts -> medium
-    assert risk_scoring.assess([_v("low", 1.0)]).tier == "low"  # 5 pts -> low
+def test_risk_scoring_tier_follows_worst_severity():
+    # The tier is driven by the worst credible severity, not the count.
+    assert risk_scoring.assess([_v("low", 1.0)]).tier == "low"
+    assert risk_scoring.assess([_v("medium", 1.0)]).tier == "medium"
+    assert risk_scoring.assess([_v("high", 1.0)]).tier == "high"
+    assert risk_scoring.assess([_v("critical", 1.0)]).tier == "critical"
+
+
+def test_risk_scoring_volume_never_crosses_tier():
+    # Twenty medium findings is still "medium" — count cannot escalate the tier.
+    many_medium = risk_scoring.assess([_v("medium", 1.0) for _ in range(20)])
+    assert many_medium.tier == "medium"
+    assert 25 <= many_medium.score <= 49
+    # ...but a single confident critical is critical.
+    one_critical = risk_scoring.assess([_v("critical", 0.95)])
+    assert one_critical.tier == "critical"
+    # More findings push the score up *within* the band (diminishing returns).
+    assert many_medium.score >= risk_scoring.assess([_v("medium", 1.0)]).score
+
+
+def test_risk_scoring_low_confidence_does_not_set_tier():
+    # A lone low-confidence "critical" shouldn't drive the case; the credible
+    # medium finding sets the tier instead.
+    a = risk_scoring.assess([_v("critical", 0.2), _v("medium", 0.9)])
+    assert a.tier == "medium"
+
+
+def test_risk_scoring_breakdown_shape():
     a = risk_scoring.assess([_v("critical", 1.0), _v("high", 1.0)])
-    assert a.score == 65  # 40 + 25
-    assert a.tier == "high"
-
-
-def test_risk_scoring_dismissed_excluded_by_caller():
-    # assess scores whatever it's given; the API filters dismissed before calling.
-    a = risk_scoring.assess([_v("critical", 1.0)])
-    assert a.score == 40
-    assert a.breakdown["violation_count"] == 1
+    assert a.tier == "critical"  # worst severity wins
+    assert a.breakdown["violation_count"] == 2
+    assert a.breakdown["peak_severity"] == "critical"
+    assert "score" in a.breakdown
 
 
 def test_chunking_short_text_single_chunk():

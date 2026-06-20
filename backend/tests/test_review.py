@@ -48,7 +48,8 @@ async def test_review_recompute_and_close(client, session):
     me = (await client.get("/api/v1/auth/me", headers=auth_headers(admin))).json()
     cid, vid1, vid2 = await _seed_case(session, me["tenant_id"], me["id"])
 
-    # Dismiss the critical → re-score from the surviving high (25), case stays open.
+    # Dismiss the critical → re-score from the surviving high; tier drops to "high"
+    # (worst remaining severity). Case stays open while a violation is unreviewed.
     r = await client.post(
         f"/api/v1/cases/{cid}/violations/{vid1}/review",
         headers=auth_headers(admin),
@@ -57,7 +58,8 @@ async def test_review_recompute_and_close(client, session):
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "pending_review"
-    assert body["risk_score"] == 25
+    assert body["risk_tier"] == "high"
+    assert 50 <= body["risk_score"] <= 74
 
     # Confirm the last one → fully adjudicated → closed.
     r = await client.post(
