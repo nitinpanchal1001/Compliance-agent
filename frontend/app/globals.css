@@ -48,37 +48,40 @@
 }
 
 html[data-theme="dark"] {
-  --bg: #100e15;
-  --bg-2: #17141f;
-  --fg: #ece9f2;
-  --muted: #a8a3b8;
-  --faint: #716c82;
+  /* absolute dark — pure neutral black, no color cast */
+  --bg: #000000;
+  --bg-2: #0a0a0a;
+  --fg: #f4f4f5;
+  --muted: #a1a1aa;
+  --faint: #6b6b73;
 
-  --fill-1: rgba(255, 255, 255, 0.05);
-  --fill-2: rgba(255, 255, 255, 0.09);
-  --fill-3: rgba(255, 255, 255, 0.13);
-  --line: rgba(255, 255, 255, 0.07);
-  --line-strong: rgba(255, 255, 255, 0.28);
+  --fill-1: rgba(255, 255, 255, 0.045);
+  --fill-2: rgba(255, 255, 255, 0.08);
+  --fill-3: rgba(255, 255, 255, 0.12);
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.26);
 
-  --glass: rgba(255, 255, 255, 0.045);
-  --glass-strong: rgba(255, 255, 255, 0.072);
-  --glass-border: rgba(255, 255, 255, 0.10);
-  --glass-hi: rgba(255, 255, 255, 0.16);
-  --shadow: 0 12px 34px -16px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 24px 56px -20px rgba(0, 0, 0, 0.7);
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-strong: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.11);
+  --glass-hi: rgba(255, 255, 255, 0.14);
+  --shadow: 0 12px 34px -16px rgba(0, 0, 0, 0.85);
+  --shadow-lg: 0 24px 56px -20px rgba(0, 0, 0, 0.9);
 
-  --teal: #2fb492;
-  --violet: #7e77ee;
-  --blue: #5e93c2;
-  --pink: #de876b;
+  /* accents — vivid against true black */
+  --teal: #2dd4bf;
+  --violet: #8b85ff;
+  --blue: #56a2f0;
+  --pink: #f0916f;
 
-  --crit: #f0675c;
-  --high: #eca24f;
-  --med: #d8b252;
-  --low: #45c194;
+  --crit: #fb6f63;
+  --high: #f5a623;
+  --med: #e2bd5a;
+  --low: #34d399;
 
-  --amb-1: rgba(47, 180, 146, 0.14);
-  --amb-2: rgba(126, 119, 238, 0.13);
+  /* ambient glow — a faint accent halo, not an overall tint */
+  --amb-1: rgba(45, 212, 191, 0.06);
+  --amb-2: rgba(139, 133, 255, 0.06);
   color-scheme: dark;
 }
 
