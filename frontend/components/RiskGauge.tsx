@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { scoreColor } from "@/lib/format";
 
 // Animated radial gauge. A 270° arc that sweeps to the score on mount, with a
@@ -17,6 +17,7 @@ export function RiskGauge({
   tier?: string | null;
 }) {
   const [shown, setShown] = useState(0);
+  const gradientId = `gauge-grad-${useId().replaceAll(":", "")}`;
   const target = score ?? 0;
 
   useEffect(() => {
@@ -25,6 +26,8 @@ export function RiskGauge({
   }, [target]);
 
   const stroke = 12;
+  const glowPadding = 18;
+  const canvasSize = size + glowPadding * 2;
   const r = (size - stroke) / 2 - 6;
   const cx = size / 2;
   const cy = size / 2;
@@ -36,10 +39,19 @@ export function RiskGauge({
   const color = scoreColor(target);
 
   return (
-    <div className="relative grid place-items-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-[0deg]">
+    <div
+      className="relative grid place-items-center"
+      style={{ width: size, height: size }}
+    >
+      <svg
+        width={canvasSize}
+        height={canvasSize}
+        viewBox={`${-glowPadding} ${-glowPadding} ${canvasSize} ${canvasSize}`}
+        className="absolute overflow-visible"
+        style={{ inset: -glowPadding }}
+      >
         <defs>
-          <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity="0.5" />
             <stop offset="100%" stopColor={color} />
           </linearGradient>
@@ -62,7 +74,7 @@ export function RiskGauge({
           cy={cy}
           r={r}
           fill="none"
-          stroke="url(#gaugeGrad)"
+          stroke={`url(#${gradientId})`}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={`${arcLen} ${circ}`}

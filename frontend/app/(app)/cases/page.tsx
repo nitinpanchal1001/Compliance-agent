@@ -6,7 +6,14 @@ import { api } from "@/lib/api";
 import type { Case, CaseStatus } from "@/lib/types";
 import { Glass, Badge, Spinner, Empty } from "@/components/ui";
 import { SlideTabs } from "@/components/SlideTabs";
-import { TIER_COLOR, STATUS_LABEL, scoreColor, timeAgo } from "@/lib/format";
+import {
+  TIER_COLOR,
+  STATUS_LABEL,
+  caseTitle,
+  scoreColor,
+  timeAgo,
+  violationSummary,
+} from "@/lib/format";
 
 const TABS: { key: "all" | CaseStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -45,15 +52,15 @@ export default function CasesPage() {
                 <div className="flex items-start gap-4">
                   <RiskOrb score={c.risk_score} tier={c.risk_tier} />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">
-                        {c.violation_count} violation{c.violation_count === 1 ? "" : "s"}
-                      </span>
-                      {c.risk_tier && <Badge color={TIER_COLOR[c.risk_tier]}>{c.risk_tier}</Badge>}
+                    <div className="truncate text-sm font-semibold">
+                      {caseTitle(c)}
                     </div>
-                    <div className="mt-1 text-xs text-faint">Opened {timeAgo(c.created_at)}</div>
+                    <div className="mt-1 text-xs text-faint">
+                      {violationSummary(c.violation_count)} · Opened {timeAgo(c.created_at)}
+                    </div>
                     <div className="mt-3 flex flex-wrap items-center gap-1.5">
                       <Badge>{STATUS_LABEL[c.status]}</Badge>
+                      {c.risk_tier && <Badge color={TIER_COLOR[c.risk_tier]}>{c.risk_tier}</Badge>}
                       {c.regulations_checked.slice(0, 3).map((r) => (
                         <Badge key={r}>{r}</Badge>
                       ))}

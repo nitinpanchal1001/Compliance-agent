@@ -53,6 +53,7 @@ export interface Violation {
 export interface Case {
   id: string;
   document_id: string;
+  document_name: string | null;
   status: CaseStatus;
   risk_score: number | null;
   risk_tier: RiskTier | null;

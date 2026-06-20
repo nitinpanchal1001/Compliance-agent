@@ -7,7 +7,14 @@ import type { Case, Document, Severity } from "@/lib/types";
 import { Glass, Badge, Spinner, Empty } from "@/components/ui";
 import { RiskGauge } from "@/components/RiskGauge";
 import { SeveritySpectrum } from "@/components/SeveritySpectrum";
-import { TIER_COLOR, STATUS_LABEL, timeAgo, scoreColor } from "@/lib/format";
+import {
+  TIER_COLOR,
+  STATUS_LABEL,
+  caseTitle,
+  scoreColor,
+  timeAgo,
+  violationSummary,
+} from "@/lib/format";
 
 export default function DashboardPage() {
   const [cases, setCases] = useState<Case[] | null>(null);
@@ -88,9 +95,11 @@ export default function DashboardPage() {
                     <RiskChip score={c.risk_score} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">
-                        Case · {c.violation_count} violation{c.violation_count === 1 ? "" : "s"}
+                        {caseTitle(c)}
                       </div>
-                      <div className="text-xs text-faint">{timeAgo(c.created_at)}</div>
+                      <div className="text-xs text-faint">
+                        {violationSummary(c.violation_count)} · {timeAgo(c.created_at)}
+                      </div>
                     </div>
                     {c.risk_tier && <Badge color={TIER_COLOR[c.risk_tier]}>{c.risk_tier}</Badge>}
                     <Badge>{STATUS_LABEL[c.status]}</Badge>

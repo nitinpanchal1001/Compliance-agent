@@ -42,6 +42,7 @@ class Case(Base):
     regulations_checked: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
     report_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
+    document: Mapped["Document"] = relationship("Document", lazy="noload")
     violations: Mapped[list["Violation"]] = relationship(  # noqa: F821
         "Violation", back_populates="case", lazy="noload", cascade="all, delete-orphan"
     )
@@ -53,5 +54,6 @@ class Case(Base):
         return f"<Case id={self.id} risk_tier={self.risk_tier}>"
 
 
+from db.models.document import Document  # noqa: E402, F401
 from db.models.human_review import HumanReview  # noqa: E402, F401
 from db.models.violation import Violation  # noqa: E402, F401

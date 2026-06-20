@@ -1,4 +1,4 @@
-import type { RiskTier, Severity, CaseStatus, DocStatus, ReviewStatus } from "./types";
+import type { RiskTier, Severity, CaseStatus, DocStatus, ReviewStatus, Case } from "./types";
 
 // Severity / tier → color token (matches CSS vars).
 export const SEVERITY_COLOR: Record<Severity, string> = {
@@ -54,6 +54,14 @@ export function bytes(n: number | null): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+export function caseTitle(c: Pick<Case, "id" | "document_name">): string {
+  return c.document_name?.trim() || `Case ${c.id.slice(0, 8)}`;
+}
+
+export function violationSummary(count: number): string {
+  return `${count} violation${count === 1 ? "" : "s"}`;
 }
 
 export function initials(name: string | null, email: string): string {

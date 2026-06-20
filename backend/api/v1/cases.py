@@ -81,6 +81,7 @@ class HumanReviewResponse(BaseModel):
 class CaseResponse(BaseModel):
     id: str
     document_id: str
+    document_name: str | None
     status: str
     risk_score: int | None
     risk_tier: str | None
@@ -90,9 +91,11 @@ class CaseResponse(BaseModel):
 
     @classmethod
     def from_model(cls, c: Case, violation_count: int | None = None) -> "CaseResponse":
+        document = getattr(c, "document", None)
         return cls(
             id=c.id,
             document_id=c.document_id,
+            document_name=document.name if document else None,
             status=c.status.value,
             risk_score=c.risk_score,
             risk_tier=c.risk_tier.value if c.risk_tier else None,
@@ -140,6 +143,7 @@ async def create_case(
         tenant_id=current_user.tenant_id,
         document_id=doc.id,
     )
+    case.document = doc
     db.add(case)
     await db.flush()
 
@@ -170,7 +174,7 @@ async def list_cases(
     stmt = (
         select(Case)
         .where(Case.tenant_id == current_user.tenant_id)
-        .options(selectinload(Case.violations))
+        .options(selectinload(Case.document), selectinload(Case.violations))
         .order_by(Case.created_at.desc())
     )
     if status_filter:
@@ -196,7 +200,7 @@ async def get_case(
     result = await db.execute(
         select(Case)
         .where(Case.id == case_id, Case.tenant_id == current_user.tenant_id)
-        .options(selectinload(Case.violations))
+        .options(selectinload(Case.document), selectinload(Case.violations))
     )
     case = result.scalar_one_or_none()
     if case is None:
@@ -218,7 +222,7 @@ async def _load_case_with_violations(
     result = await db.execute(
         select(Case)
         .where(Case.id == case_id, Case.tenant_id == tenant_id)
-        .options(selectinload(Case.violations))
+        .options(selectinload(Case.document), selectinload(Case.violations))
     )
     case = result.scalar_one_or_none()
     if case is None:

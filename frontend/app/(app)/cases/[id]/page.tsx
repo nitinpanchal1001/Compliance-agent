@@ -8,7 +8,15 @@ import type { CaseDetail, HumanReview, Violation } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { Glass, Badge, Button, Spinner, Empty } from "@/components/ui";
 import { RiskGauge } from "@/components/RiskGauge";
-import { SEVERITY_COLOR, TIER_COLOR, REVIEW_COLOR, STATUS_LABEL, timeAgo } from "@/lib/format";
+import {
+  SEVERITY_COLOR,
+  TIER_COLOR,
+  REVIEW_COLOR,
+  STATUS_LABEL,
+  caseTitle,
+  timeAgo,
+  violationSummary,
+} from "@/lib/format";
 
 export default function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -81,8 +89,9 @@ export default function CaseDetailPage() {
               <Badge>AI score {aiScore} → adjudicated {c.risk_score}</Badge>
             )}
           </div>
+          <h1 className="text-lg font-semibold tracking-tight">{caseTitle(c)}</h1>
           <div className="text-sm text-muted">
-            {c.violation_count} violation{c.violation_count === 1 ? "" : "s"} ·{" "}
+            {violationSummary(c.violation_count)} ·{" "}
             {reviewedCount}/{c.violation_count} reviewed · opened {timeAgo(c.created_at)}
           </div>
           <div className="flex flex-wrap justify-center gap-1.5 sm:justify-start">
