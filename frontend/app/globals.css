@@ -224,6 +224,19 @@ body {
   transition: opacity 0.25s ease;
 }
 
+/* horizontal sibling of .nav-pill — glides between tabs, animating x + width */
+.tab-pill {
+  will-change: transform, width;
+  transition:
+    transform 0.42s cubic-bezier(0.34, 1.4, 0.5, 1),
+    width 0.42s cubic-bezier(0.34, 1.4, 0.5, 1),
+    height 0.42s cubic-bezier(0.34, 1.4, 0.5, 1),
+    opacity 0.25s ease;
+}
+.tab-pill-instant {
+  transition: opacity 0.25s ease;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--line-strong) transparent;
@@ -236,5 +249,5 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fade-up, .pulse-dot, .spin, .theme-knob, .nav-pill { animation: none; transition: none; }
+  .fade-up, .pulse-dot, .spin, .theme-knob, .nav-pill, .tab-pill { animation: none; transition: none; }
 }

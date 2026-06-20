@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import type { Case, CaseStatus } from "@/lib/types";
 import { Glass, Badge, Spinner, Empty } from "@/components/ui";
+import { SlideTabs } from "@/components/SlideTabs";
 import { TIER_COLOR, STATUS_LABEL, scoreColor, timeAgo } from "@/lib/format";
 
 const TABS: { key: "all" | CaseStatus; label: string }[] = [
@@ -26,19 +27,7 @@ export default function CasesPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
-      <div className="fade-up flex flex-wrap gap-1.5">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`rounded-xl px-3.5 py-1.5 text-sm transition ${
-              tab === t.key ? "glass text-fg" : "text-muted hover:text-fg hover:bg-[var(--fill-1)]"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SlideTabs tabs={TABS} value={tab} onChange={setTab} className="fade-up" />
 
       {!cases ? (
         <div className="grid place-items-center py-24 text-muted">
