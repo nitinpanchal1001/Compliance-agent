@@ -88,9 +88,9 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop rail — collapses to an icon-only column */}
+      {/* Desktop rail — sticky full-height column; collapses to icons */}
       <aside
-        className={`hidden shrink-0 flex-col gap-2 overflow-hidden p-4 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:flex ${
+        className={`sticky top-0 hidden h-screen shrink-0 flex-col gap-2 self-start overflow-x-hidden overflow-y-auto p-4 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:flex ${
           collapsed ? "md:w-[5.25rem]" : "md:w-60"
         }`}
       >
@@ -280,7 +280,7 @@ export function Topbar({ title }: { title: string }) {
   const { me, logout } = useAuth();
   const { setMobileOpen } = useSidebar();
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-4 px-5 py-5">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_82%,transparent)] px-5 py-5 backdrop-blur-xl">
       <div className="flex min-w-0 items-center gap-3">
         <button
           onClick={() => setMobileOpen(true)}

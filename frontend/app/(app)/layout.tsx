@@ -42,7 +42,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar title={title} />
-          <main className="flex-1 px-5 pb-12">{children}</main>
+          <main className="flex-1 px-5 pb-12 pt-6">{children}</main>
         </div>
       </div>
     </SidebarProvider>
