@@ -19,6 +19,8 @@ COLLECTION = settings.qdrant_collection
 
 @lru_cache
 def get_client() -> QdrantClient:
+    if settings.qdrant_url:
+        return QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
     return QdrantClient(
         host=settings.qdrant_host,
         port=settings.qdrant_port,

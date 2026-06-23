@@ -104,7 +104,10 @@ async def ready():
     # Qdrant
     try:
         from qdrant_client import AsyncQdrantClient
-        qc = AsyncQdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
+        if settings.qdrant_url:
+            qc = AsyncQdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
+        else:
+            qc = AsyncQdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
         await qc.get_collections()
         await qc.close()
         checks["qdrant"] = "ok"

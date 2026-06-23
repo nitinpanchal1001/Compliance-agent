@@ -19,7 +19,8 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://redis:6379/0"
     celery_result_backend: str = "redis://redis:6379/1"
 
-    # Qdrant
+    # Qdrant — set qdrant_url for Qdrant Cloud; host/port used for local Docker
+    qdrant_url: str = ""
     qdrant_host: str = "qdrant"
     qdrant_port: int = 6333
     qdrant_api_key: str = ""

@@ -1,0 +1,118 @@
+# Render Blueprint — deploy with "render blueprint apply" or connect the repo
+# in the Render dashboard (https://dashboard.render.com/blueprints).
+#
+# External services required (free tiers available):
+#   • Neon        — PostgreSQL  https://neon.tech
+#   • Upstash     — Redis       https://upstash.com
+#   • Qdrant Cloud — vectors    https://cloud.qdrant.io
+#   • AWS S3 / Cloudflare R2 / Backblaze B2 — document storage
+#
+# All `sync: false` vars must be set in the Render dashboard before deploying.
+
+envVarGroups:
+  - name: compliance-shared
+    envVars:
+      # ── Postgres (Neon) ──────────────────────────────────────────────────────
+      # Format: postgresql+asyncpg://user:pass@ep-xxx.region.aws.neon.tech/dbname?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+
+      # ── Redis (Upstash) ──────────────────────────────────────────────────────
+      # Use the TLS URL from the Upstash console (rediss://default:TOKEN@host:6379)
+      # Celery broker + result backend both point at the same instance; keys are namespaced.
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false
+
+      # ── Qdrant Cloud ─────────────────────────────────────────────────────────
+      # Format: https://xyz.cloud.qdrant.io:6333
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+
+      # ── S3-compatible object storage ─────────────────────────────────────────
+      # For AWS S3: leave S3_ENDPOINT_URL empty; set region, key, secret, bucket.
+      # For Cloudflare R2: S3_ENDPOINT_URL=https://<account>.r2.cloudflarestorage.com
+      # For Backblaze B2: S3_ENDPOINT_URL=https://s3.<region>.backblazeb2.com
+      - key: S3_ENDPOINT_URL
+        value: ""
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET_NAME
+        value: compliance-docs
+      - key: S3_REGION
+        value: us-east-1
+
+      # ── Auth & security ───────────────────────────────────────────────────────
+      - key: SECRET_KEY
+        generateValue: true
+
+      # ── LLM ──────────────────────────────────────────────────────────────────
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LITELLM_DEFAULT_MODEL
+        value: gpt-4o-mini
+      - key: LITELLM_REASONING_MODEL
+        value: gpt-4o
+
+services:
+  # ── Backend API ──────────────────────────────────────────────────────────────
+  - type: web
+    name: compliance-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    # Runs alembic migrations on every deploy before traffic shifts to the new instance.
+    preDeployCommand: "uv run alembic upgrade head"
+    envVars:
+      - fromGroup: compliance-shared
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      # Set to the frontend Render URL once deployed, e.g.:
+      #   https://compliance-frontend.onrender.com
+      # Multiple origins: comma-separated.
+      - key: CORS_ORIGINS
+        sync: false
+
+  # ── Celery Worker ─────────────────────────────────────────────────────────────
+  - type: worker
+    name: compliance-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    plan: starter
+    startCommand: "uv run celery -A workers.celery_app worker --loglevel=info --concurrency=2"
+    envVars:
+      - fromGroup: compliance-shared
+      - key: APP_ENV
+        value: production
+
+  # ── Next.js Frontend ──────────────────────────────────────────────────────────
+  - type: web
+    name: compliance-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: starter
+    healthCheckPath: /
+    buildArgs:
+      # Set to the compliance-api service URL, e.g.:
+      #   https://compliance-api.onrender.com/api/v1
+      # Deploy the API first to get its URL, then redeploy the frontend.
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+    envVars:
+      - key: NODE_ENV
+        value: production
