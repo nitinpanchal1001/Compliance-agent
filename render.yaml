@@ -47,7 +47,7 @@ envVarGroups:
       - key: S3_BUCKET_NAME
         value: compliance-docs
       - key: S3_REGION
-        value: us-east-1
+        value: auto
 
       # ── Auth & security ───────────────────────────────────────────────────────
       - key: SECRET_KEY
@@ -70,10 +70,8 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile.render
     dockerContext: .
-    plan: starter
+    plan: free
     healthCheckPath: /health
-    # Runs alembic migrations on every deploy before traffic shifts to the new instance.
-    preDeployCommand: "uv run alembic upgrade head"
     envVars:
       - fromGroup: compliance-shared
       - key: APP_ENV
@@ -92,27 +90,10 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile.render
     dockerContext: .
-    plan: starter
+    plan: free
     startCommand: "uv run celery -A workers.celery_app worker --loglevel=info --concurrency=2"
     envVars:
       - fromGroup: compliance-shared
       - key: APP_ENV
         value: production
 
-  # ── Next.js Frontend ──────────────────────────────────────────────────────────
-  - type: web
-    name: compliance-frontend
-    runtime: docker
-    dockerfilePath: ./frontend/Dockerfile
-    dockerContext: ./frontend
-    plan: starter
-    healthCheckPath: /
-    buildArgs:
-      # Set to the compliance-api service URL, e.g.:
-      #   https://compliance-api.onrender.com/api/v1
-      # Deploy the API first to get its URL, then redeploy the frontend.
-      - key: NEXT_PUBLIC_API_URL
-        sync: false
-    envVars:
-      - key: NODE_ENV
-        value: production
