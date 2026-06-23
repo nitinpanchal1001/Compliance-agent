@@ -1,8 +1,7 @@
 FROM python:3.12-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    UV_SYSTEM_PYTHON=1
+    PYTHONUNBUFFERED=1
 
 RUN pip install uv
 
@@ -15,12 +14,14 @@ RUN uv sync --no-dev
 
 # ── final image ────────────────────────────────────────
 FROM base AS final
-COPY --from=deps /usr/local/lib/python3.12 /usr/local/lib/python3.12
-COPY --from=deps /usr/local/bin /usr/local/bin
+# Copy the virtualenv built in deps (not system Python — uv uses .venv by default)
+COPY --from=deps /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
 COPY backend/ .
-# Embed the policy corpus so it's available without a volume mount on Render.
 COPY policy_corpus/ /policy_corpus/
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Single worker — Render free tier is 512 MB RAM
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
