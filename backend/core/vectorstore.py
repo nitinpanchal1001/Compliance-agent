@@ -8,8 +8,6 @@ never retrieve another tenant's vectors.
 from functools import lru_cache
 from uuid import NAMESPACE_URL, uuid5
 
-from qdrant_client import QdrantClient, models
-
 from core.config import get_settings
 
 settings = get_settings()
@@ -17,8 +15,14 @@ settings = get_settings()
 COLLECTION = settings.qdrant_collection
 
 
+def _models():
+    from qdrant_client import models
+    return models
+
+
 @lru_cache
-def get_client() -> QdrantClient:
+def get_client():
+    from qdrant_client import QdrantClient
     if settings.qdrant_url:
         return QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
     return QdrantClient(
@@ -40,8 +44,8 @@ def ensure_collection() -> None:
         return
     client.create_collection(
         collection_name=COLLECTION,
-        vectors_config=models.VectorParams(
-            size=settings.embedding_dim, distance=models.Distance.COSINE
+        vectors_config=_models().VectorParams(
+            size=settings.embedding_dim, distance=_models().Distance.COSINE
         ),
     )
     # Indexed payload fields make tenant/document filtering fast.
@@ -49,7 +53,7 @@ def ensure_collection() -> None:
         client.create_payload_index(
             collection_name=COLLECTION,
             field_name=field,
-            field_schema=models.PayloadSchemaType.KEYWORD,
+            field_schema=_models().PayloadSchemaType.KEYWORD,
         )
 
 
@@ -58,7 +62,7 @@ def upsert_chunks(
 ) -> None:
     """chunks: list of (chunk_index, text, vector)."""
     points = [
-        models.PointStruct(
+        _models().PointStruct(
             id=_point_id(document_id, idx),
             vector=vector,
             payload={
@@ -77,12 +81,12 @@ def upsert_chunks(
 def delete_document(document_id: str) -> None:
     get_client().delete(
         collection_name=COLLECTION,
-        points_selector=models.FilterSelector(
-            filter=models.Filter(
+        points_selector=_models().FilterSelector(
+            filter=_models().Filter(
                 must=[
-                    models.FieldCondition(
+                    _models().FieldCondition(
                         key="document_id",
-                        match=models.MatchValue(value=document_id),
+                        match=_models().MatchValue(value=document_id),
                     )
                 ]
             )
@@ -97,13 +101,13 @@ def get_document_chunks(tenant_id: str, document_id: str) -> list[dict]:
     """
     points, _ = get_client().scroll(
         collection_name=COLLECTION,
-        scroll_filter=models.Filter(
+        scroll_filter=_models().Filter(
             must=[
-                models.FieldCondition(
-                    key="tenant_id", match=models.MatchValue(value=tenant_id)
+                _models().FieldCondition(
+                    key="tenant_id", match=_models().MatchValue(value=tenant_id)
                 ),
-                models.FieldCondition(
-                    key="document_id", match=models.MatchValue(value=document_id)
+                _models().FieldCondition(
+                    key="document_id", match=_models().MatchValue(value=document_id)
                 ),
             ]
         ),
@@ -126,20 +130,20 @@ def search(
 ) -> list[dict]:
     """Tenant-scoped similarity search. Returns payloads with a `score`."""
     must = [
-        models.FieldCondition(
-            key="tenant_id", match=models.MatchValue(value=tenant_id)
+        _models().FieldCondition(
+            key="tenant_id", match=_models().MatchValue(value=tenant_id)
         )
     ]
     if document_id:
         must.append(
-            models.FieldCondition(
-                key="document_id", match=models.MatchValue(value=document_id)
+            _models().FieldCondition(
+                key="document_id", match=_models().MatchValue(value=document_id)
             )
         )
     hits = get_client().query_points(
         collection_name=COLLECTION,
         query=query_vector,
-        query_filter=models.Filter(must=must),
+        query_filter=_models().Filter(must=must),
         limit=limit,
         with_payload=True,
     ).points
@@ -165,26 +169,26 @@ def ensure_policy_collection() -> None:
         return
     client.create_collection(
         collection_name=POLICY_COLLECTION,
-        vectors_config=models.VectorParams(
-            size=settings.embedding_dim, distance=models.Distance.COSINE
+        vectors_config=_models().VectorParams(
+            size=settings.embedding_dim, distance=_models().Distance.COSINE
         ),
     )
     for field in ("owner", "regulation", "policy_id"):
         client.create_payload_index(
             collection_name=POLICY_COLLECTION,
             field_name=field,
-            field_schema=models.PayloadSchemaType.KEYWORD,
+            field_schema=_models().PayloadSchemaType.KEYWORD,
         )
 
 
 def delete_policy(policy_id: str) -> None:
     get_client().delete(
         collection_name=POLICY_COLLECTION,
-        points_selector=models.FilterSelector(
-            filter=models.Filter(
+        points_selector=_models().FilterSelector(
+            filter=_models().Filter(
                 must=[
-                    models.FieldCondition(
-                        key="policy_id", match=models.MatchValue(value=policy_id)
+                    _models().FieldCondition(
+                        key="policy_id", match=_models().MatchValue(value=policy_id)
                     )
                 ]
             )
@@ -197,7 +201,7 @@ def upsert_policy_chunks(points: list[dict]) -> None:
     policy_id, owner, regulation, section, citation, chunk_index, text, vector.
     """
     structs = [
-        models.PointStruct(
+        _models().PointStruct(
             id=_policy_point_id(p["policy_id"], p["section"], p["chunk_index"]),
             vector=p["vector"],
             payload={
@@ -228,27 +232,27 @@ def search_policies(
     """
     # owner is "global" OR the caller's tenant_id
     must: list = [
-        models.Filter(
+        _models().Filter(
             should=[
-                models.FieldCondition(
-                    key="owner", match=models.MatchValue(value="global")
+                _models().FieldCondition(
+                    key="owner", match=_models().MatchValue(value="global")
                 ),
-                models.FieldCondition(
-                    key="owner", match=models.MatchValue(value=tenant_id)
+                _models().FieldCondition(
+                    key="owner", match=_models().MatchValue(value=tenant_id)
                 ),
             ]
         )
     ]
     if regulations:
         must.append(
-            models.FieldCondition(
-                key="regulation", match=models.MatchAny(any=regulations)
+            _models().FieldCondition(
+                key="regulation", match=_models().MatchAny(any=regulations)
             )
         )
     hits = get_client().query_points(
         collection_name=POLICY_COLLECTION,
         query=query_vector,
-        query_filter=models.Filter(must=must),
+        query_filter=_models().Filter(must=must),
         limit=limit,
         with_payload=True,
     ).points

@@ -7,16 +7,12 @@ claude-* → Anthropic, ollama/* → local), using API keys from the environment
 
 import json
 
-import litellm
 import structlog
 
 from core.config import get_settings
 
 settings = get_settings()
 log = structlog.get_logger()
-
-# Don't blow up if a provider doesn't support an optional param we pass.
-litellm.drop_params = True
 
 
 def chat_json(
@@ -31,6 +27,9 @@ def chat_json(
     Raises the last error if every attempt fails (caller decides whether to retry
     the surrounding task).
     """
+    import litellm
+    litellm.drop_params = True
+
     model = model or settings.litellm_reasoning_model
     temperature = settings.reasoning_temperature if temperature is None else temperature
 

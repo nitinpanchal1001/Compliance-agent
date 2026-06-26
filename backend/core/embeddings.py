@@ -2,8 +2,6 @@
 
 from functools import lru_cache
 
-from openai import OpenAI
-
 from core.config import get_settings
 
 settings = get_settings()
@@ -13,7 +11,8 @@ _BATCH_SIZE = 100
 
 
 @lru_cache
-def _client() -> OpenAI:
+def _client():
+    from openai import OpenAI
     return OpenAI(api_key=settings.openai_api_key)
 
 
