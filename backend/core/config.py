@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     # Security
     rate_limit_enabled: bool = True
     # Comma-separated list of allowed browser origins for CORS.
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000, https://compliance-agent-rose.vercel.app/", 
 
     @property
     def cors_origin_list(self) -> list[str]:
