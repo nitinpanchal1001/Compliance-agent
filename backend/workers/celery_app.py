@@ -1,3 +1,5 @@
+import ssl
+
 from celery import Celery
 
 from core.config import get_settings
@@ -28,7 +30,7 @@ celery_app.conf.update(
 )
 
 if settings.celery_broker_url.startswith("rediss://"):
-    _ssl = {"ssl_cert_reqs": "CERT_REQUIRED"}
+    _ssl = {"ssl_cert_reqs": ssl.CERT_NONE}
     celery_app.conf.update(
         broker_use_ssl=_ssl,
         redis_backend_use_ssl=_ssl,
