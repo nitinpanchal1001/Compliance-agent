@@ -26,3 +26,10 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
     result_expires=3600,
 )
+
+if settings.celery_broker_url.startswith("rediss://"):
+    _ssl = {"ssl_cert_reqs": "CERT_REQUIRED"}
+    celery_app.conf.update(
+        broker_use_ssl=_ssl,
+        redis_backend_use_ssl=_ssl,
+    )
