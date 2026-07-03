@@ -51,4 +51,4 @@ def rate_limit(name: str, limit: int, window_seconds: int):
 # Convenience aliases for common buckets.
 LoginRate = Annotated[None, Depends(rate_limit("login", 10, 60))]
 RefreshRate = Annotated[None, Depends(rate_limit("refresh", 30, 60))]
-SignupRate = Annotated[None, Depends(rate_limit("signup", 5, 3600))]
+SignupRate = Annotated[None, Depends(rate_limit("signup", 25, 3600))]
