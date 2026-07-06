@@ -1,0 +1,9 @@
+# API-only Caddyfile for the EC2 stack (frontend lives on Vercel).
+# Caddy obtains and renews the Let's Encrypt certificate automatically.
+{
+    email {$TLS_EMAIL}
+}
+
+{$DOMAIN} {
+    reverse_proxy api:8000
+}

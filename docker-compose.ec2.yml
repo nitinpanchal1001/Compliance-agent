@@ -1,0 +1,77 @@
+# EC2 stack: API + Celery worker + Redis + Caddy on one instance.
+# Frontend stays on Vercel; Postgres (Neon), Qdrant Cloud and R2 stay managed.
+#
+# Redis replaces Upstash and is only reachable on the internal Docker network —
+# no published port, so no password/TLS required. Use plain redis:// URLs:
+#   REDIS_URL=redis://redis:6379/0
+#   CELERY_BROKER_URL=redis://redis:6379/0
+#   CELERY_RESULT_BACKEND=redis://redis:6379/1
+#
+# Bring it up with:
+#   docker compose -f docker-compose.ec2.yml up -d --build
+# Then run migrations:
+#   docker compose -f docker-compose.ec2.yml exec api uv run alembic upgrade head
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # AOF persistence so broker/refresh-token state survives restarts.
+    # noeviction: Celery queue entries must never be silently dropped.
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./policy_corpus:/policy_corpus:ro
+    # 2 uvicorn workers instead of the Dockerfile's 4 — sized for a 2 GB instance.
+    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./policy_corpus:/policy_corpus:ro
+    # concurrency=1 keeps peak memory low; raise if the instance has headroom.
+    command: uv run celery -A workers.celery_app worker --loglevel=info --concurrency=1
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      TLS_EMAIL: ${TLS_EMAIL}
+    volumes:
+      - ./Caddyfile.ec2:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+volumes:
+  redis_data:
+  caddy_data:
+  caddy_config:
