@@ -7,6 +7,7 @@ from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -98,7 +99,16 @@ async def upload_document(
 
     # Tenant-scoped S3 key so objects are naturally partitioned per tenant.
     s3_key = f"{current_user.tenant_id}/{uuid4()}/{filename}"
-    storage.upload_bytes(data, s3_key, content_type=file.content_type)
+    # boto3 is synchronous — run it off the event loop so a slow S3/R2 upload
+    # doesn't stall every other request on this worker.
+    try:
+        await run_in_threadpool(storage.upload_bytes, data, s3_key, file.content_type)
+    except Exception as exc:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            f"Object storage upload failed: {exc.__class__.__name__}. "
+            "Check S3/R2 endpoint and credentials.",
+        )
 
     doc = Document(
         tenant_id=current_user.tenant_id,
@@ -176,7 +186,10 @@ async def delete_document(
 ):
     doc = await _get_owned_document(document_id, current_user.tenant_id, db)
     # Best-effort cleanup of the raw object; row + cascade handle the rest.
-    storage.delete_object(doc.s3_key)
+    try:
+        await run_in_threadpool(storage.delete_object, doc.s3_key)
+    except Exception:
+        pass  # object cleanup is best-effort; the DB row is the source of truth
     await audit.record(
         db,
         tenant_id=current_user.tenant_id,

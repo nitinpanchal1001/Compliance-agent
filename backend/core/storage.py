@@ -14,7 +14,14 @@ settings = get_settings()
 def get_s3_client():
     kwargs: dict = {
         "region_name": settings.s3_region,
-        "config": Config(signature_version="s3v4"),
+        # Fail fast on a bad endpoint/creds instead of hanging for minutes on
+        # boto3's default 60s timeouts × retries.
+        "config": Config(
+            signature_version="s3v4",
+            connect_timeout=5,
+            read_timeout=60,
+            retries={"max_attempts": 2, "mode": "standard"},
+        ),
     }
     if settings.s3_access_key:
         kwargs["aws_access_key_id"] = settings.s3_access_key
