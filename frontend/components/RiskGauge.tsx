@@ -98,7 +98,7 @@ export function RiskGauge({
         </span>
         {tier && (
           <span
-            className="mt-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+            className="mt-1.5 rounded-full px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
             style={{
               color,
               background: `color-mix(in srgb, ${color} 16%, transparent)`,
